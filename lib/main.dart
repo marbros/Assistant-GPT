@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
+import 'package:dash_chat_2/dash_chat_2.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,17 +36,20 @@ class _MyHomePageState extends State<MyHomePage> {
   late OpenAI openAI;
   TextEditingController textEditingController = TextEditingController();
 
+  List<ChatMessage> messages = [];
+  ChatUser user = ChatUser(id: "1", firstName: "Geremias", lastName: "Pettywisker");
+  ChatUser openGPT = ChatUser(id: "2", firstName: "OpenIA", lastName: "chatGPT");
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    const token = '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';
+    const token = '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';
     openAI = OpenAI.instance.build(token: token,baseOption: HttpSetup(receiveTimeout: 16000),isLogger: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    //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
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -58,35 +62,61 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            SingleChildScrollView(child: Text(results)),
+            Expanded(
+              child:DashChat(
+                currentUser: user,
+                onSend: (ChatMessage m) {
+                  setState(() {
+                    messages.insert(0, m);
+                  });
+                },
+                messages: messages, readOnly: true,
+              )),
+            // SingleChildScrollView(child: Text(results)),
             Row(children: [
-              Expanded (
+              Expanded(
                 child: Card(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25)
-                  ),
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 14.0),
                   child: TextField(
                     controller: textEditingController,
-                  )
-                )
-              ),
+                    decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Type anything here ..."),
+                  ),
+                ),
+              )),
               ElevatedButton(onPressed: () {
+
+                ChatMessage msg = ChatMessage(user: user, createdAt: DateTime.now(), text: textEditingController.text);
+                setState(() {
+                  messages.insert(0,msg);
+                });
+
                 final request = CompleteText(prompt: textEditingController.text,
                 model: kTranslateModelV3, maxTokens: 200);
 
-                openAI.onCompleteStream(request:request).listen((response) {
-                  results = response!.choices.first.text;
+                openAI.onCompleteStream(request:request).first.then((response) {
+
+                  ChatMessage msg = ChatMessage(user: openGPT, createdAt: DateTime.now(),
+                   text: response!.choices.first.text.trim());
                   setState(() {
-                    results;
+                    messages.insert(0,msg);
                   });
-                }).onError((err) {
-                    print("$err");
+
+                  // results = response!.choices.first.text;
+                  // setState(() {
+                  //   results;
+                  // });
                 });
                 textEditingController.clear();
-              }, child:Icon(Icons.send),//style: ElevatedButton.styleFrom(
-                 // shape: CircleBorder(), padding: EdgeInsets.all(12), backgroundColor: Colors.green,
-              ),//)
+              }, child:Icon(Icons.send),style: ElevatedButton.styleFrom(
+                 shape: CircleBorder(), padding: EdgeInsets.all(12), backgroundColor: Colors.green,
+              ),)
             ],)
           ],
         ),
