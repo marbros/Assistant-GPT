@@ -1,3 +1,5 @@
+// ignore_for_file: sort_child_properties_last
+
 import 'package:flutter/material.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
@@ -44,7 +46,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    const token = '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';
+    const token = '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';
     openAI = OpenAI.instance.build(token: token,baseOption: HttpSetup(receiveTimeout: 16000),isLogger: true);
   }
 
@@ -97,25 +99,44 @@ class _MyHomePageState extends State<MyHomePage> {
                   messages.insert(0,msg);
                 });
 
-                final request = CompleteText(prompt: textEditingController.text,
-                model: kTranslateModelV3, maxTokens: 200);
+                if(textEditingController.text.toLowerCase().startsWith('generate image')) {
+                  final request = GenerateImage(textEditingController.text,2, size: "256x256");
 
-                openAI.onCompleteStream(request:request).first.then((response) {
+                  openAI.generateImageStream(request)
+                  .asBroadcastStream()
+                  .first.then((it) {
+                    print(it.data?.last?.url);
 
-                  ChatMessage msg = ChatMessage(user: openGPT, createdAt: DateTime.now(),
-                   text: response!.choices.first.text.trim());
-                  setState(() {
-                    messages.insert(0,msg);
+                    for(var imgData in it.data!) {
+                      ChatMessage msg = ChatMessage(user: openGPT,
+                        createdAt: DateTime.now(),
+                        text: "Image", medias: [ChatMedia(url: imgData!.url!, fileName: "image", type: MediaType.image)]);
+                      setState(() {
+                        messages.insert(0,msg);
+                      });
+                    }
                   });
+                }else {
+                  final request = CompleteText(prompt: textEditingController.text,
+                  model: kTranslateModelV3, maxTokens: 200);
 
-                  // results = response!.choices.first.text;
-                  // setState(() {
-                  //   results;
-                  // });
-                });
+                  openAI.onCompleteStream(request:request).first.then((response) {
+
+                    ChatMessage msg = ChatMessage(user: openGPT, createdAt: DateTime.now(),
+                    text: response!.choices.first.text.trim());
+                    setState(() {
+                      messages.insert(0,msg);
+                    });
+
+                    // results = response!.choices.first.text;
+                    // setState(() {
+                    //   results;
+                    // });
+                  });
+                }
                 textEditingController.clear();
-              }, child:Icon(Icons.send),style: ElevatedButton.styleFrom(
-                 shape: CircleBorder(), padding: EdgeInsets.all(12), backgroundColor: Colors.green,
+              }, child:const Icon(Icons.send),style: ElevatedButton.styleFrom(
+                 shape: const CircleBorder(), padding: EdgeInsets.all(12), backgroundColor: Colors.green,
               ),)
             ],)
           ],
